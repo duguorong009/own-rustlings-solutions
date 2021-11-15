@@ -3,6 +3,7 @@
 // on strings to generate an object of the implementor type.
 // You can read more about it at https://doc.rust-lang.org/std/str/trait.FromStr.html
 use std::error;
+use std::fmt;
 use std::str::FromStr;
 
 #[derive(Debug)]
@@ -10,8 +11,6 @@ struct Person {
     name: String,
     age: usize,
 }
-
-// I AM NOT DONE
 
 // Steps:
 // 1. If the length of the provided string is 0, an error should be returned
@@ -23,9 +22,53 @@ struct Person {
 // 6. If while extracting the name and the age something goes wrong, an error should be returned
 // If everything goes well, then return a Result of a Person object
 
+#[derive(Debug)]
+enum PersonStrParseError {
+    EmptyString,
+    InsufficientParams,
+    ParseNumError(std::num::ParseIntError),
+}
+
+impl fmt::Display for PersonStrParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            PersonStrParseError::EmptyString => write!(f, "Empty input string"),
+            PersonStrParseError::InsufficientParams => write!(f, "Should exist 2 params"),
+            PersonStrParseError::ParseNumError(_) => write!(f, "Oh no"),
+        }
+    }
+}
+
+impl error::Error for PersonStrParseError {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        Some(self)
+    }
+}
+
 impl FromStr for Person {
     type Err = Box<dyn error::Error>;
     fn from_str(s: &str) -> Result<Person, Self::Err> {
+        if s.len() == 0 {
+            Err(Box::new(PersonStrParseError::EmptyString))
+        } else {
+            let params: Vec<&str> = s.split(",").collect();
+            if params.len() != 2 {
+                Err(Box::new(PersonStrParseError::InsufficientParams))
+            } else {
+                if params[0].len() == 0 {
+                    Err(Box::new(PersonStrParseError::EmptyString))
+                } else {
+                    let ageResult = params[1].parse::<usize>();
+                    match ageResult {
+                        Err(e) => Err(Box::new(PersonStrParseError::ParseNumError(e))),
+                        Ok(age) => Ok(Person {
+                            name: params[0].to_string(),
+                            age: age,
+                        }),
+                    }
+                }
+            }
+        }
     }
 }
 
